@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+:root {
+  --color-bg: #0f172a;        /* พื้นหลังหลัก */
+  --color-bg-card: #1e293b;   /* พื้นหลังการ์ด */
+  --color-primary: #3b82f6;   /* สีหลัก */
+  --color-primary-hover: #2563eb;
+  --color-text: #f1f5f9;      /* ข้อความหลัก */
+  --color-text-muted: #94a3b8;
+  --color-border: #334155;
+  --color-success: #22c55e;
+  --color-danger: #ef4444;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
