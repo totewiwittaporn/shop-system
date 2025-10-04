@@ -21,10 +21,12 @@ export default function PurchasePage() {
     supplierId: "",
     lines: [{ productId: "", quantity: "", unitCost: "", deliveryStockType: "NORMAL" }],
   });
+  const [suppliers, setSuppliers] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
     fetchBranches();
     fetchProducts();
+    fetchSuppliers();
   }, []);
 
   async function fetchBranches() {
@@ -35,6 +37,11 @@ export default function PurchasePage() {
   async function fetchProducts() {
     const res = await axios.get("/api/products");
     setProducts(res.data);
+  }
+
+  async function fetchSuppliers() {
+    const res = await axios.get("/api/suppliers");
+    setSuppliers(res.data);
   }
 
   function handleLineChange(index: number, field: string, value: string) {

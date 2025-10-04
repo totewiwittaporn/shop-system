@@ -60,7 +60,7 @@ export default function BranchPage() {
   async function handleUpdateBranch() {
     if (!editId) return;
     try {
-      await axios.put(`${API_URL}/api/branches${editId}`, {
+      await axios.put(`${API_URL}/api/branches/${editId}`, {
         name: form.name,
         address: form.address,
         phone: form.phone,
@@ -75,7 +75,7 @@ export default function BranchPage() {
 
   async function handleDeleteBranch(id: number) {
     try {
-      await axios.delete(`${API_URL}/api/branches${id}`);
+      await axios.delete(`${API_URL}/api/branches/${id}`);
       fetchBranches();
     } catch (err) {
       console.error("ลบสาขาล้มเหลว", err);
