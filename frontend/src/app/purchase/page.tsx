@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import axios from "@/lib/axios";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
-import Select, { SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/Select";
+import Select, {
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/Select";
 
 interface PurchaseLine {
   productId: number;
@@ -19,12 +24,24 @@ export default function PurchasePage() {
   const [form, setForm] = useState({
     branchId: "",
     supplierId: "",
-    lines: [{ productId: "", quantity: "", unitCost: "", deliveryStockType: "NORMAL" }],
+    lines: [
+      {
+        productId: "",
+        quantity: "",
+        unitCost: "",
+        deliveryStockType: "NORMAL",
+      },
+    ],
   });
+
+  const [suppliers, setSuppliers] = useState<{ id: number; name: string }[]>(
+    []
+  );
 
   useEffect(() => {
     fetchBranches();
     fetchProducts();
+    fetchSuppliers();
   }, []);
 
   async function fetchBranches() {
@@ -37,6 +54,11 @@ export default function PurchasePage() {
     setProducts(res.data);
   }
 
+  async function fetchSuppliers() {
+    const res = await axios.get("/api/suppliers");
+    setSuppliers(res.data);
+  }
+
   function handleLineChange(index: number, field: string, value: string) {
     const newLines = [...form.lines];
     (newLines[index] as any)[field] = value;
@@ -46,7 +68,15 @@ export default function PurchasePage() {
   function addLine() {
     setForm({
       ...form,
-      lines: [...form.lines, { productId: "", quantity: "", unitCost: "", deliveryStockType: "NORMAL" }],
+      lines: [
+        ...form.lines,
+        {
+          productId: "",
+          quantity: "",
+          unitCost: "",
+          deliveryStockType: "NORMAL",
+        },
+      ],
     });
   }
 
@@ -66,7 +96,18 @@ export default function PurchasePage() {
       })),
     });
 
-    setForm({ branchId: "", supplierId: "", lines: [{ productId: "", quantity: "", unitCost: "", deliveryStockType: "NORMAL" }] });
+    setForm({
+      branchId: "",
+      supplierId: "",
+      lines: [
+        {
+          productId: "",
+          quantity: "",
+          unitCost: "",
+          deliveryStockType: "NORMAL",
+        },
+      ],
+    });
   }
 
   return (
@@ -76,34 +117,82 @@ export default function PurchasePage() {
           <CardTitle>สร้างการซื้อสินค้า</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Select value={form.branchId} onValueChange={(val) => setForm({ ...form, branchId: val })}>
-            <SelectTrigger><SelectValue placeholder="เลือกสาขา" /></SelectTrigger>
+          <Select
+            value={form.branchId}
+            onValueChange={(val) => setForm({ ...form, branchId: val })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="เลือกสาขา" />
+            </SelectTrigger>
             <SelectContent>
-              {branches.map((b) => <SelectItem key={b.id} value={b.id.toString()}>{b.name}</SelectItem>)}
+              {branches.map((b) => (
+                <SelectItem key={b.id} value={b.id.toString()}>
+                  {b.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
-          <Select value={form.supplierId} onValueChange={(val) => setForm({ ...form, supplierId: val })}>
-            <SelectTrigger><SelectValue placeholder="เลือกซัพพลายเออร์" /></SelectTrigger>
+          <Select
+            value={form.supplierId}
+            onValueChange={(val) => setForm({ ...form, supplierId: val })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="เลือกซัพพลายเออร์" />
+            </SelectTrigger>
             <SelectContent>
-              {suppliers.map((s) => <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>)}
+              {suppliers.map((s) => (
+                <SelectItem key={s.id} value={s.id.toString()}>
+                  {s.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
           {form.lines.map((line, idx) => (
             <div key={idx} className="flex gap-2">
-              <Select value={line.productId.toString()} onValueChange={(val) => handleLineChange(idx, "productId", val)}>
-                <SelectTrigger><SelectValue placeholder="เลือกสินค้า" /></SelectTrigger>
+              <Select
+                value={line.productId.toString()}
+                onValueChange={(val) => handleLineChange(idx, "productId", val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="เลือกสินค้า" />
+                </SelectTrigger>
                 <SelectContent>
-                  {products.map((p) => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}
+                  {products.map((p) => (
+                    <SelectItem key={p.id} value={p.id.toString()}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
-              <input type="number" placeholder="จำนวน" value={line.quantity} onChange={(e) => handleLineChange(idx, "quantity", e.target.value)} />
-              <input type="number" placeholder="ราคาต่อหน่วย" value={line.unitCost} onChange={(e) => handleLineChange(idx, "unitCost", e.target.value)} />
+              <input
+                type="number"
+                placeholder="จำนวน"
+                value={line.quantity}
+                onChange={(e) =>
+                  handleLineChange(idx, "quantity", e.target.value)
+                }
+              />
+              <input
+                type="number"
+                placeholder="ราคาต่อหน่วย"
+                value={line.unitCost}
+                onChange={(e) =>
+                  handleLineChange(idx, "unitCost", e.target.value)
+                }
+              />
 
-              <Select value={line.deliveryStockType} onValueChange={(val) => handleLineChange(idx, "deliveryStockType", val)}>
-                <SelectTrigger><SelectValue placeholder="ประเภทสต็อก" /></SelectTrigger>
+              <Select
+                value={line.deliveryStockType}
+                onValueChange={(val) =>
+                  handleLineChange(idx, "deliveryStockType", val)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="ประเภทสต็อก" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="NORMAL">NORMAL</SelectItem>
                   <SelectItem value="CONSIGNMENT">CONSIGNMENT</SelectItem>
@@ -113,7 +202,9 @@ export default function PurchasePage() {
           ))}
 
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={addLine}>+ เพิ่มสินค้า</Button>
+            <Button variant="secondary" onClick={addLine}>
+              + เพิ่มสินค้า
+            </Button>
             <Button onClick={handleAddPurchase}>บันทึกการซื้อ</Button>
           </div>
         </CardContent>
