@@ -59,7 +59,7 @@ export default function Sidebar() {
       items: [
         {
           name: "จัดการผู้ใช้",
-          path: "/users", // ✅ หน้าใหม่ที่เราจะทำต่อ
+          path: "/users", // เมนูจัดการผู้ใช้สำหรับผู้ดูแลระบบ
           roles: ["admin"],
         },
         {
