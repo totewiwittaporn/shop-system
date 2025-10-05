@@ -19,6 +19,7 @@
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
+    "puppeteer": "^24.23.0",
     "sharp": "^0.34.3"
   },
   "devDependencies": {

@@ -1,157 +1,116 @@
+// frontend/app/stock/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "@/lib/axios";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
-import Select, { SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/Select";
+import Input from "@/components/ui/Input";
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from "@/components/ui/Select";
 
-interface Stock {
+type Branch = { id: number; name: string };
+type Row = {
   branchId: number;
   productId: number;
   quantity: number;
-  stockLocation: string;
-  branchName: string;
-  productName: string;
-}
+  branch?: { id: number; name: string };
+  branchProduct?: { product?: { id: number; name?: string; sku?: string; barcode?: string } };
+};
 
-export default function StockPage() {
-  const [stocks, setStocks] = useState<Stock[]>([]);
-  const [form, setForm] = useState({ branchId: "", productId: "", quantity: "", stockLocation: "MAIN" });
-  const [editId, setEditId] = useState<number | null>(null);
-  const [products, setProducts] = useState<{ id: number; name: string }[]>([]);
-  const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
+const toPosInt = (v: string | number) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : 0; };
 
-  useEffect(() => {
-    fetchStocks();
-    fetchProducts();
-    fetchBranches();
-  }, []);
+export default function StockViewerPage() {
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchId, setBranchId] = useState<string>("");
+  const [search, setSearch] = useState("");
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  async function fetchStocks() {
-    const res = await axios.get("/api/stocks");
-    setStocks(res.data);
+  useEffect(() => { loadBranches(); }, []);
+  useEffect(() => { load(); }, [branchId, search]);
+
+  async function loadBranches() {
+    try {
+      const res = await axios.get<any>("/api/settings/branches", { params: { pageSize: 200 } });
+      const arr = Array.isArray(res.data) ? res.data : res.data.items ?? res.data.branches ?? [];
+      // ให้ Chalin Shop ขึ้นก่อน
+      const sorted = arr.sort((a: any, b: any) => (a.name === "Chalin Shop" ? -1 : b.name === "Chalin Shop" ? 1 : a.name.localeCompare(b.name)));
+      setBranches(sorted.map((b: any) => ({ id: b.id, name: b.name })));
+    } catch {}
   }
 
-  async function fetchProducts() {
-    const res = await axios.get("/api/products");
-    setProducts(res.data);
+  async function load() {
+    try {
+      setLoading(true);
+      const res = await axios.get<Row[]>("/api/stocks", {
+        params: {
+          branchId: toPosInt(branchId) || undefined,
+          search: search || undefined,
+        },
+      });
+      setRows(res.data);
+    } finally { setLoading(false); }
   }
 
-  async function fetchBranches() {
-    const res = await axios.get("/api/branches");
-    setBranches(res.data);
-  }
-
-  async function handleAddStock() {
-    await axios.post("/api/stocks", {
-      ...form,
-      branchId: Number(form.branchId),
-      productId: Number(form.productId),
-    });
-    setForm({ branchId: "", productId: "", quantity: "", stockLocation: "MAIN" });
-    fetchStocks();
-  }
-
-  async function handleUpdateStock(stock: Stock) {
-    await axios.put(`/api/stocks/${stock.branchId}/${stock.productId}/${stock.stockLocation}`, {
-      quantity: Number(form.quantity),
-    });
-    setEditId(null);
-    setForm({ branchId: "", productId: "", quantity: "", stockLocation: "MAIN" });
-    fetchStocks();
-  }
-
-  function handleEdit(stock: Stock) {
-    setEditId(stock.productId);
-    setForm({
-      branchId: String(stock.branchId),
-      productId: String(stock.productId),
-      quantity: String(stock.quantity),
-      stockLocation: stock.stockLocation,
-    });
-  }
+  const total = useMemo(() => rows.reduce((s, r) => s + (r.quantity || 0), 0), [rows]);
 
   return (
     <div className="p-6 space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle>{editId ? "แก้ไขสต็อก" : "เพิ่มสต็อก"}</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>สต็อกคงเหลือ (สาขา)</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <Select value={form.branchId} onValueChange={(val) => setForm({ ...form, branchId: val })}>
-            <SelectTrigger><SelectValue placeholder="เลือกสาขา" /></SelectTrigger>
-            <SelectContent>
-              {branches.map((b) => <SelectItem key={b.id} value={b.id.toString()}>{b.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-
-          <Select value={form.productId} onValueChange={(val) => setForm({ ...form, productId: val })}>
-            <SelectTrigger><SelectValue placeholder="เลือกสินค้า" /></SelectTrigger>
-            <SelectContent>
-              {products.map((p) => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-
-          <Select value={form.stockLocation} onValueChange={(val) => setForm({ ...form, stockLocation: val })}>
-            <SelectTrigger><SelectValue placeholder="เลือกประเภทสต็อก" /></SelectTrigger>
-            <SelectContent>
-              {["MAIN", "BRANCH", "CONSIGN"].map((loc) => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
-            </SelectContent>
-          </Select>
-
-          <input
-            type="number"
-            placeholder="จำนวน"
-            value={form.quantity}
-            onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-          />
-
-          {editId ? (
-            <div className="flex gap-2">
-              <Button onClick={() => handleUpdateStock(stocks.find((s) => s.productId === editId)!)}>บันทึก</Button>
-              <Button variant="secondary" onClick={() => setEditId(null)}>ยกเลิก</Button>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <div className="text-sm font-medium">สาขา</div>
+              <Select value={branchId} onValueChange={setBranchId}>
+                <SelectTrigger><SelectValue placeholder="เลือกสาขา" /></SelectTrigger>
+                <SelectContent>
+                  {branches.map((b) => <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-          ) : (
-            <Button onClick={handleAddStock}>เพิ่มสต็อก</Button>
-          )}
-        </CardContent>
-      </Card>
+            <div className="md:col-span-2 space-y-1">
+              <div className="text-sm font-medium">ค้นหา (ชื่อ/รหัส/บาร์โค้ด)</div>
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="พิมพ์อย่างน้อย 2 ตัวอักษร"/>
+            </div>
+          </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>รายการสต็อก</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <table className="w-full border">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="p-2 border">สาขา</th>
-                <th className="p-2 border">สินค้า</th>
-                <th className="p-2 border">ประเภทสต็อก</th>
-                <th className="p-2 border">จำนวน</th>
-                <th className="p-2 border">จัดการ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stocks.map((s) => (
-                <tr key={`${s.branchId}-${s.productId}-${s.stockLocation}`}>
-                  <td className="p-2 border">{s.branchName}</td>
-                  <td className="p-2 border">{s.productName}</td>
-                  <td className="p-2 border">{s.stockLocation}</td>
-                  <td className="p-2 border">{s.quantity}</td>
-                  <td className="p-2 border space-x-2">
-                    <Button variant="secondary" onClick={() => handleEdit(s)}>แก้ไข</Button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full border text-sm">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="p-2 border">Product</th>
+                  <th className="p-2 border w-32">Quantity</th>
                 </tr>
-              ))}
-              {stocks.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="text-center p-2">ไม่มีข้อมูลสต็อก</td>
+              </thead>
+              <tbody>
+                {rows.map((r) => {
+                  const p = r.branchProduct?.product;
+                  return (
+                    <tr key={`${r.branchId}-${r.productId}`}>
+                      <td className="p-2 border">
+                        {p?.name ?? `#${r.productId}`}
+                        <div className="text-xs text-gray-500">
+                          ID: {p?.id ?? r.productId}{p?.sku ? ` • SKU: ${p.sku}` : ""}{p?.barcode ? ` • BARCODE: ${p.barcode}` : ""}
+                        </div>
+                      </td>
+                      <td className="p-2 border text-right">{r.quantity}</td>
+                    </tr>
+                  );
+                })}
+                {!rows.length && (
+                  <tr><td className="p-3 text-center text-gray-500" colSpan={2}>ไม่มีข้อมูล</td></tr>
+                )}
+              </tbody>
+              <tfoot>
+                <tr className="bg-gray-50">
+                  <td className="p-2 border text-right font-medium">รวม</td>
+                  <td className="p-2 border text-right font-bold">{total}</td>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </tfoot>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>

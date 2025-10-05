@@ -9,9 +9,10 @@ export default function SettingsPage() {
     { title: "Categories", href: "/settings/categories" },
     { title: "Branches", href: "/settings/branches" },
     { title: "Branch Products", href: "/settings/branchProducts" },
+    { title: "Consignment", href: "/settings/shops" },
     { title: "Consigned Products", href: "/settings/consignedProducts" },
-    { title: "Shops", href: "/settings/shops" },
     { title: "Suppliers", href: "/settings/suppliers" },
+    { title: "Delivery Template", href: "/settings/delivery-templates" },
   ];
 
   return (

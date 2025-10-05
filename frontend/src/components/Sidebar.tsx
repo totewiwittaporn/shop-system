@@ -23,18 +23,18 @@ export default function Sidebar() {
       section: "สินค้า",
       items: [
         {
-          name: "จัดการสต็อกสินค้า",
+          name: "สต็อกสินค้า",
           path: "/stock",
           roles: ["admin", "staff", "customer"],
         },
         {
-          name: "ฝากขายสินค้า",
-          path: "/consignment",
+          name: "ซื้อสินค้า",
+          path: "/purchase",
           roles: ["admin"],
         },
         {
-          name: "ซื้อสินค้า",
-          path: "/purchase",
+          name: "ระบบส่งสินค้า",
+          path: "/delivery",
           roles: ["admin"],
         },
       ],
@@ -47,11 +47,7 @@ export default function Sidebar() {
           path: "/sales",
           roles: ["admin", "staff"],
         },
-        {
-          name: "ระบบส่งสินค้า",
-          path: "/delivery",
-          roles: ["admin"],
-        },
+        
       ],
     },
     {

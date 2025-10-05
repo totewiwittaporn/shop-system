@@ -7,7 +7,7 @@ import AuthLayout from "@/layouts/AuthLayout";
 import { Card } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import Select, { SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/Select";
+import {Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/Select";
 
 interface Category {
   id: number;
@@ -144,7 +144,7 @@ export default function ProductsPage() {
 
           <Select
             value={form.categoryId?.toString()}
-            onValueChange={(val) => setForm({ ...form, categoryId: Number(val) })}
+            onValueChange={(val: string) => setForm({ ...form, categoryId: Number(val) })}
           >
             <SelectTrigger>
               <SelectValue placeholder="เลือกหมวดหมู่" />
