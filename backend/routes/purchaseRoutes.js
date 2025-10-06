@@ -62,7 +62,7 @@ router.post("/", authMiddleware, checkRole(["admin","staff"]), async (req, res) 
         supplierId,
         branchId,
         docDate,
-        // ✅ ใช้ items ให้ตรง schema
+        status: "PENDING",
         lines: { create: itemsToCreate },
       },
       include: { lines: true, supplier: true, branch: true },
@@ -188,5 +188,30 @@ router.post("/:id/confirm", authMiddleware, checkRole(["admin","staff"]), async 
     res.status(400).json({ error: e.message || "ยืนยันรับเข้าไม่สำเร็จ" });
   }
 });
+
+router.get("/", async (req, res) => {
+  try {
+    const { dateFrom, dateTo } = req.query;
+    const where = {};
+    if (dateFrom) where.docDate = { gte: new Date(dateFrom) };
+    if (dateTo) where.docDate = { ...(where.docDate || {}), lte: new Date(dateTo) };
+
+    const purchases = await prisma.purchase.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        lines: { include: { product: true } },
+        supplier: true,
+        branch: true,
+      },
+    });
+
+    res.json(purchases);
+  } catch (err) {
+    console.error("❌ Load purchases failed:", err);
+    res.status(500).json({ error: "โหลดรายการคำสั่งซื้อไม่สำเร็จ" });
+  }
+});
+
 
 module.exports = router;

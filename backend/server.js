@@ -36,9 +36,6 @@ app.use("/api/settings/delivery-templates", require("./routes/setting/deliveryTe
 
 // draft & delivery docs
 app.use("/api/stock-issue-drafts", require("./routes/stockIssueDrafts"));
-const deliveryDocs = require("./routes/deliveryDocs");
-app.use("/api/delivery-docs", deliveryDocs);
-// app.use("/api/delivery", deliveryDocs);          // ← ถ้ามีหน้าเก่าเรียก /api/delivery ให้เปิด alias นี้ได้
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

@@ -61,7 +61,9 @@ const toPosInt = (v: string | number) => {
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 const money = (n?: number | null) =>
-  typeof n === "number" ? n.toLocaleString("th-TH", { minimumFractionDigits: 2 }) : "-";
+  typeof n === "number"
+    ? n.toLocaleString("th-TH", { minimumFractionDigits: 2 })
+    : "-";
 
 /* ========== Page ========== */
 export default function PurchasePage() {
@@ -76,7 +78,14 @@ export default function PurchasePage() {
   const [stockLoc, setStockLoc] = useState<"MAIN" | "CONSIGN">("MAIN");
 
   const [lines, setLines] = useState<PurchaseLineInput[]>([
-    { productId: 0, orderedQty: 0, usableQty: 0, defectQty: 0, unitCost: 0, StockLocation: "MAIN" },
+    {
+      productId: 0,
+      orderedQty: 0,
+      usableQty: 0,
+      defectQty: 0,
+      unitCost: 0,
+      StockLocation: "MAIN",
+    },
   ]);
 
   /* pending list filters */
@@ -108,20 +117,32 @@ export default function PurchasePage() {
       try {
         setErr(null);
         const [b, s, p] = await Promise.all([
-          axios.get<any>("/api/settings/branches", { params: { pageSize: 200 } }),
-          axios.get<any>("/api/settings/suppliers", { params: { pageSize: 200 } }),
+          axios.get<any>("/api/settings/branches", {
+            params: { pageSize: 200 },
+          }),
+          axios.get<any>("/api/settings/suppliers", {
+            params: { pageSize: 200 },
+          }),
           axios.get<any>("/api/products", { params: { pageSize: 500 } }),
         ]);
 
-        const branchArr = Array.isArray(b.data) ? b.data : b.data.items ?? b.data.branches ?? [];
-        const suppArr = Array.isArray(s.data) ? s.data : s.data.items ?? s.data.suppliers ?? [];
-        const prodArr   = Array.isArray(p.data) ? p.data : p.data.items ?? p.data.products ?? [];
+        const branchArr = Array.isArray(b.data)
+          ? b.data
+          : b.data.items ?? b.data.branches ?? [];
+        const suppArr = Array.isArray(s.data)
+          ? s.data
+          : s.data.items ?? s.data.suppliers ?? [];
+        const prodArr = Array.isArray(p.data)
+          ? p.data
+          : p.data.items ?? p.data.products ?? [];
 
         setBranches(branchArr.map((x: any) => ({ id: x.id, name: x.name })));
         setSuppliers(suppArr.map((x: any) => ({ id: x.id, name: x.name })));
         setProducts(prodArr.map((x: any) => ({ id: x.id, name: x.name })));
       } catch (e: any) {
-        setErr(e?.response?.data?.error || e.message || "โหลดข้อมูลหลักล้มเหลว");
+        setErr(
+          e?.response?.data?.error || e.message || "โหลดข้อมูลหลักล้มเหลว"
+        );
       }
     })();
   }, []);
@@ -135,7 +156,7 @@ export default function PurchasePage() {
     try {
       setBusy(true);
       setErr(null);
-      const res = await axios.get<PurchaseRow[]>("/api/purchases/pending", {
+      const res = await axios.get<PurchaseRow[]>("/api/purchases", {
         params: {
           dateFrom: dateFrom || undefined,
           dateTo: dateTo || undefined,
@@ -144,9 +165,7 @@ export default function PurchasePage() {
       setPending(res.data);
     } catch (e: any) {
       setErr(
-        e?.response?.data?.error ||
-          e.message ||
-          "โหลดรายการรอรับเข้าไม่สำเร็จ"
+        e?.response?.data?.error || e.message || "โหลดรายการรอรับเข้าไม่สำเร็จ"
       );
     } finally {
       setBusy(false);
@@ -156,7 +175,14 @@ export default function PurchasePage() {
   function addLine() {
     setLines((prev) => [
       ...prev,
-      { productId: 0, orderedQty: 0, usableQty: 0, defectQty: 0, unitCost: 0, StockLocation: stockLoc },
+      {
+        productId: 0,
+        orderedQty: 0,
+        usableQty: 0,
+        defectQty: 0,
+        unitCost: 0,
+        StockLocation: stockLoc,
+      },
     ]);
   }
   function removeLine(i: number) {
@@ -167,7 +193,9 @@ export default function PurchasePage() {
       const arr = [...prev];
       if (field === "StockLocation") {
         arr[i].StockLocation = (val as any) === "CONSIGN" ? "CONSIGN" : "MAIN";
-      } else if (["productId", "orderedQty", "usableQty", "defectQty"].includes(field)) {
+      } else if (
+        ["productId", "orderedQty", "usableQty", "defectQty"].includes(field)
+      ) {
         (arr[i] as any)[field] = toPosInt(val);
       } else if (field === "unitCost") {
         (arr[i] as any)[field] = Number(val);
@@ -177,7 +205,10 @@ export default function PurchasePage() {
   }
 
   async function createPurchase() {
-    if (!canCreate) return alert("กรอกข้อมูลให้ครบ: ผู้ขาย + รายการ (productId/orderedQty/unitCost)");
+    if (!canCreate)
+      return alert(
+        "กรอกข้อมูลให้ครบ: ผู้ขาย + รายการ (productId/orderedQty/unitCost)"
+      );
     try {
       setBusy(true);
       const payload = {
@@ -196,7 +227,16 @@ export default function PurchasePage() {
       };
       await axios.post("/api/purchases", payload);
       // reset
-      setLines([{ productId: 0, orderedQty: 0, usableQty: 0, defectQty: 0, unitCost: 0, StockLocation: stockLoc }]);
+      setLines([
+        {
+          productId: 0,
+          orderedQty: 0,
+          usableQty: 0,
+          defectQty: 0,
+          unitCost: 0,
+          StockLocation: stockLoc,
+        },
+      ]);
       alert("สร้างใบซื้อสำเร็จ");
       await loadPending();
     } catch (e: any) {
@@ -240,7 +280,11 @@ export default function PurchasePage() {
               <div className="text-sm font-medium">ผู้ขาย</div>
               <Select value={supplierId} onValueChange={setSupplierId}>
                 <SelectTrigger>
-                  <SelectValue placeholder={suppliers.length ? "เลือกผู้ขาย" : "กำลังโหลดผู้ขาย…"} />
+                  <SelectValue
+                    placeholder={
+                      suppliers.length ? "เลือกผู้ขาย" : "กำลังโหลดผู้ขาย…"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {suppliers.length ? (
@@ -250,7 +294,9 @@ export default function PurchasePage() {
                       </SelectItem>
                     ))
                   ) : (
-                    <div className="px-3 py-2 text-sm text-gray-500">กำลังโหลด…</div>
+                    <div className="px-3 py-2 text-sm text-gray-500">
+                      กำลังโหลด…
+                    </div>
                   )}
                 </SelectContent>
               </Select>
@@ -261,7 +307,13 @@ export default function PurchasePage() {
               <div className="text-sm font-medium">สาขาปลายทาง</div>
               <Select value={branchId} onValueChange={setBranchId}>
                 <SelectTrigger>
-                  <SelectValue placeholder={branches.length ? "เลือกสาขา (ไม่บังคับ)" : "กำลังโหลดสาขา…"} />
+                  <SelectValue
+                    placeholder={
+                      branches.length
+                        ? "เลือกสาขา (ไม่บังคับ)"
+                        : "กำลังโหลดสาขา…"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {branches.length ? (
@@ -271,7 +323,9 @@ export default function PurchasePage() {
                       </SelectItem>
                     ))
                   ) : (
-                    <div className="px-3 py-2 text-sm text-gray-500">กำลังโหลด…</div>
+                    <div className="px-3 py-2 text-sm text-gray-500">
+                      กำลังโหลด…
+                    </div>
                   )}
                 </SelectContent>
               </Select>
@@ -331,7 +385,13 @@ export default function PurchasePage() {
                           onValueChange={(v) => updateLine(i, "productId", v)}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder={products.length ? "เลือกสินค้า" : "กำลังโหลดสินค้า…"} />
+                            <SelectValue
+                              placeholder={
+                                products.length
+                                  ? "เลือกสินค้า"
+                                  : "กำลังโหลดสินค้า…"
+                              }
+                            />
                           </SelectTrigger>
                           <SelectContent>
                             {products.length ? (
@@ -341,7 +401,9 @@ export default function PurchasePage() {
                                 </SelectItem>
                               ))
                             ) : (
-                              <div className="px-3 py-2 text-sm text-gray-500">กำลังโหลด…</div>
+                              <div className="px-3 py-2 text-sm text-gray-500">
+                                กำลังโหลด…
+                              </div>
                             )}
                           </SelectContent>
                         </Select>
@@ -350,34 +412,44 @@ export default function PurchasePage() {
                         <Input
                           type="number"
                           value={l.orderedQty}
-                          onChange={(e) => updateLine(i, "orderedQty", e.target.value)}
+                          onChange={(e) =>
+                            updateLine(i, "orderedQty", e.target.value)
+                          }
                         />
                       </td>
                       <td className="p-2 border">
                         <Input
                           type="number"
                           value={l.usableQty}
-                          onChange={(e) => updateLine(i, "usableQty", e.target.value)}
+                          onChange={(e) =>
+                            updateLine(i, "usableQty", e.target.value)
+                          }
                         />
                       </td>
                       <td className="p-2 border">
                         <Input
                           type="number"
                           value={l.defectQty}
-                          onChange={(e) => updateLine(i, "defectQty", e.target.value)}
+                          onChange={(e) =>
+                            updateLine(i, "defectQty", e.target.value)
+                          }
                         />
                       </td>
                       <td className="p-2 border">
                         <Input
                           type="number"
                           value={l.unitCost}
-                          onChange={(e) => updateLine(i, "unitCost", e.target.value)}
+                          onChange={(e) =>
+                            updateLine(i, "unitCost", e.target.value)
+                          }
                         />
                       </td>
                       <td className="p-2 border">
                         <Select
                           value={l.StockLocation}
-                          onValueChange={(v) => updateLine(i, "StockLocation", v)}
+                          onValueChange={(v) =>
+                            updateLine(i, "StockLocation", v)
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="เลือกคลัง" />
@@ -389,7 +461,10 @@ export default function PurchasePage() {
                         </Select>
                       </td>
                       <td className="p-2 border text-center">
-                        <Button variant="destructive" onClick={() => removeLine(i)}>
+                        <Button
+                          variant="destructive"
+                          onClick={() => removeLine(i)}
+                        >
                           ลบ
                         </Button>
                       </td>
@@ -419,7 +494,7 @@ export default function PurchasePage() {
       {/* pending list */}
       <Card>
         <CardHeader>
-          <CardTitle>รายการรอรับเข้า (PENDING)</CardTitle>
+          <CardTitle>รายการคำสั่งซื้อทั้งหมด</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -454,28 +529,65 @@ export default function PurchasePage() {
                   <th className="p-2 border">ซัพพลายเออร์</th>
                   <th className="p-2 border">สาขาปลายทาง</th>
                   <th className="p-2 border">วันที่</th>
+                  <th className="p-2 border">สถานะ</th>
                   <th className="p-2 border">ยอดรวม</th>
                   <th className="p-2 border w-40">จัดการ</th>
                 </tr>
               </thead>
               <tbody>
                 {pending.map((p) => {
-                  const arr = (p.lines ?? p.items ?? []) as PurchaseLineFromAPI[];
-                  const total = arr.reduce((s, l) => s + (Number(l.totalCost) || 0), 0);
+                  const arr = (p.lines ??
+                    p.items ??
+                    []) as PurchaseLineFromAPI[];
+                  const total = arr.reduce(
+                    (s, l) => s + (Number(l.totalCost) || 0),
+                    0
+                  );
                   const dt = p.docDate || p.createdAt;
                   return (
                     <tr key={p.id}>
                       <td className="p-2 border text-center">{p.id}</td>
-                      <td className="p-2 border">{supplierName(p.supplierId)}</td>
+                      <td className="p-2 border">
+                        {supplierName(p.supplierId)}
+                      </td>
                       <td className="p-2 border">{branchName(p.branchId)}</td>
                       <td className="p-2 border">
                         {new Date(dt).toLocaleString("th-TH")}
                       </td>
+                      <td className="p-2 border text-center">
+                        {p.status === "PENDING" && (
+                          <span className="text-yellow-600 font-medium">
+                            รอรับเข้า
+                          </span>
+                        )}
+                        {p.status === "RECEIVED" && (
+                          <span className="text-green-600 font-medium">
+                            รับเข้าแล้ว
+                          </span>
+                        )}
+                        {p.status === "CANCELED" && (
+                          <span className="text-red-600 font-medium">
+                            ยกเลิก
+                          </span>
+                        )}
+                      </td>
                       <td className="p-2 border">{money(total)}</td>
-                      <td className="p-2 border">
-                        <Button variant="secondary" onClick={() => confirm(p.id)} disabled={busy}>
-                          ยืนยันรับเข้า
-                        </Button>
+                      <td className="p-2 border text-center">
+                        {p.status === "PENDING" && (
+                          <Button
+                            variant="secondary"
+                            onClick={() => confirm(p.id)}
+                            disabled={busy}
+                          >
+                            ยืนยันรับเข้า
+                          </Button>
+                        )}
+                        {p.status === "RECEIVED" && (
+                          <span className="text-green-700">เสร็จสิ้น</span>
+                        )}
+                        {p.status === "CANCELED" && (
+                          <span className="text-gray-500">ยกเลิกแล้ว</span>
+                        )}
                       </td>
                     </tr>
                   );

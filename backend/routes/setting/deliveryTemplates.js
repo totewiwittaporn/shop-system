@@ -13,24 +13,20 @@ function toPosInt(v) {
 
 const ALLOWED_SCOPES = new Set(["GLOBAL", "BRANCH_SHARED", "CONSIGNMENT"]);
 
-/** เก็บเฉพาะคีย์ที่เกี่ยวกับ layout/policy ของเทมเพลต
- *  (เพิ่ม/ลดคีย์ได้ตามต้องการ เช่น columns/numbering) */
+/** เก็บเฉพาะคีย์ของ layout/policy ของเทมเพลต (ไม่เก็บ lines สินค้า) */
 function pruneConfig(cfg) {
   const c = cfg && typeof cfg === "object" ? cfg : {};
   const out = {};
   if (c.patternKey != null) out.patternKey = String(c.patternKey);
   if (c.headerNote != null) out.headerNote = String(c.headerNote);
   if (c.footerNote != null) out.footerNote = String(c.footerNote);
-
-  // optional advanced fields (ถ้ามีใช้)
-  if (c.columns != null) out.columns = c.columns;       // ตัวอย่างคอลัมน์แสดงผล
-  if (c.numbering != null) out.numbering = c.numbering; // ตัวอย่างรูปแบบเลขที่เอกสาร
-
-  // ❌ ไม่รองรับ/ไม่เก็บ lines ที่เป็นสินค้าจริงในเทมเพลต
+  if (c.columns != null) out.columns = c.columns;
+  if (c.numbering != null) out.numbering = c.numbering;
+  // ❌ ห้ามแนบ lines จริงไว้ในเทมเพลต
   return out;
 }
 
-// ---------- GET: list + filters (scope/branch/shop/search) ----------
+// ---------- GET: list ----------
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const { scope, branchId, consignmentShopId, search } = req.query;
@@ -45,9 +41,7 @@ router.get("/", authMiddleware, async (req, res) => {
       const s = toPosInt(consignmentShopId);
       if (s) where.consignmentShopId = s;
     }
-    if (search) {
-      where.name = { contains: String(search), mode: "insensitive" };
-    }
+    if (search) where.name = { contains: String(search), mode: "insensitive" };
 
     const templates = await prisma.deliveryTemplate.findMany({
       where,
@@ -102,11 +96,8 @@ router.post("/", authMiddleware, async (req, res) => {
     if (scope === "CONSIGNMENT" && !consignmentShopId) {
       return res.status(400).json({ error: "consignmentShopId จำเป็นเมื่อ scope=CONSIGNMENT" });
     }
-    if (scope === "GLOBAL") {
-      // บังคับให้ null ตามสคีมา/เจตนา
-      if (branchId || consignmentShopId) {
-        return res.status(400).json({ error: "GLOBAL ห้ามระบุ branchId/consignmentShopId" });
-      }
+    if (scope === "GLOBAL" && (branchId || consignmentShopId)) {
+      return res.status(400).json({ error: "GLOBAL ห้ามระบุ branchId/consignmentShopId" });
     }
 
     const created = await prisma.deliveryTemplate.create({
@@ -123,7 +114,7 @@ router.post("/", authMiddleware, async (req, res) => {
   } catch (err) {
     console.error("❌ Create template failed:", err);
     if (err?.code === "P2002") {
-      // @@unique([scope, name])
+      // @@unique([scope, name]) ใน Prisma schema
       return res.status(400).json({ error: "ชื่อเทมเพลตซ้ำในขอบเขตนี้" });
     }
     res.status(500).json({ error: "สร้าง template ล้มเหลว" });
@@ -136,7 +127,6 @@ router.put("/:id", authMiddleware, async (req, res) => {
     const id = toPosInt(req.params.id);
     if (!id) return res.status(400).json({ error: "id ไม่ถูกต้อง" });
 
-    // โหลดของเดิมไว้เช็คเงื่อนไข scope
     const existing = await prisma.deliveryTemplate.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ error: "ไม่พบ template นี้" });
 
@@ -144,7 +134,6 @@ router.put("/:id", authMiddleware, async (req, res) => {
       req.body.scope != null ? String(req.body.scope).toUpperCase() : existing.scope;
     const newScope = ALLOWED_SCOPES.has(scopeRaw) ? scopeRaw : existing.scope;
 
-    // เตรียมค่า branch/shop ใหม่
     let branchId =
       req.body.branchId === null
         ? null
@@ -159,11 +148,9 @@ router.put("/:id", authMiddleware, async (req, res) => {
         ? toPosInt(req.body.consignmentShopId)
         : existing.consignmentShopId;
 
-    // ชื่อ
     let newName = typeof req.body.name === "string" ? req.body.name.trim() : existing.name;
     if (!newName) return res.status(400).json({ error: "name ต้องไม่ว่าง" });
 
-    // ปรับตามกติกา scope
     if (newScope === "GLOBAL") {
       branchId = null;
       consignmentShopId = null;
@@ -172,9 +159,7 @@ router.put("/:id", authMiddleware, async (req, res) => {
       consignmentShopId = null;
     } else if (newScope === "CONSIGNMENT") {
       if (!consignmentShopId)
-        return res
-          .status(400)
-          .json({ error: "consignmentShopId จำเป็นเมื่อ scope=CONSIGNMENT" });
+        return res.status(400).json({ error: "consignmentShopId จำเป็นเมื่อ scope=CONSIGNMENT" });
       branchId = null;
     }
 
@@ -184,7 +169,6 @@ router.put("/:id", authMiddleware, async (req, res) => {
       consignmentShopId,
       name: newName,
     };
-
     if (req.body.config !== undefined) {
       data.config = pruneConfig(req.body.config); // ✅ ไม่มี lines
     }

@@ -8,423 +8,20 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-//
-// ----------------------------
-// 🔹 Users & Branch
-// ----------------------------
-model User {
-  id           Int     @id @default(autoincrement())
-  name         String?
-  email        String  @unique
-  passwordHash String
-  role         Role    @default(user)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // พนักงานร้านหลัก (ของเรา)
-  branchId Int?
-  branch   Branch? @relation(fields: [branchId], references: [id])
-
-  // เจ้าของ/พนักงานร้านฝากขาย (ไม่มีสาขา)
-  consignmentShopId Int?
-  consignmentShop   ConsignmentShop? @relation(fields: [consignmentShopId], references: [id])
-
-  orders             Order[]
-  sales              Sale[]
-  ConsignmentInvoice ConsignmentInvoice[]
-}
-
-model Branch {
-  id        Int        @id @default(autoincrement())
-  name      String
-  type      BranchType @default(BRANCH)
-  location  String?
-  taxId     String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-
-  users             User[]
-  stocks            Stock[]
-  orders            Order[]
-  purchases         Purchase[]
-  products          BranchProduct[]
-  invoices          Invoice[]
-  invoiceTemplates  InvoiceTemplate[]
-  deliveryTemplates DeliveryTemplate[]
-  sales             Sale[]             @relation("SaleBranch")
-  saleItems         SaleItem[]
-  StockIssueDraft   StockIssueDraft[]
-  DeliveryDoc       DeliveryDoc[]
-}
-
-enum BranchType {
-  HEAD
-  BRANCH
-}
-
-//
-// ----------------------------
-// 🔹 Supplier
-// ----------------------------
-model Supplier {
-  id        Int      @id @default(autoincrement())
-  name      String
-  contact   String?
-  phone     String?
-  email     String?
-  address   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  purchases Purchase[]
-}
-
-//
-// ----------------------------
-// 🔹 Product & Category (ของเรา)
-// ----------------------------
-model Category {
-  id        Int      @id @default(autoincrement())
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  products Product[]
-}
-
-model Product {
-  id          Int     @id @default(autoincrement())
-  name        String
-  description String?
-  categoryId  Int
-  barcode     String? @unique
-
-  category  Category @relation(fields: [categoryId], references: [id])
-  stocks    Stock[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  branchProducts      BranchProduct[]
-  orderItems          OrderItem[]
-  purchaseItems       PurchaseItem[]
-  consignedProducts   ConsignedProduct[]
-  saleItems           SaleItem[]
-  stockIssueDraftLine StockIssueDraftLine[]
-  shopProductMappings ShopProductMap[]
-  ConsignmentStock    ConsignmentStock[]
-}
-
-//
-// ----------------------------
-// 🔹 Product per Branch (ของเรา)
-// ----------------------------
-model BranchProduct {
-  id        Int      @id @default(autoincrement())
-  branchId  Int
-  productId Int
-  sku       String?
-  name      String?
-  price     Float
-  stock     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  branch     Branch      @relation(fields: [branchId], references: [id])
-  product    Product     @relation(fields: [productId], references: [id])
-  orderItems OrderItem[]
-  stocks     Stock[]
-}
-
-//
-// ----------------------------
-// 🔹 Stock (คงคลังต่อสาขา/ที่เก็บ)
-// ----------------------------
-model Stock {
-  id              Int           @id @default(autoincrement())
-  branchProductId Int
-  productId       Int
-  quantity        Int           @default(0)
-  StockLocation   StockLocation @default(MAIN)
-  updatedAt       DateTime      @updatedAt
-
-  branchId      Int
-  branch        Branch        @relation(fields: [branchId], references: [id])
-  branchProduct BranchProduct @relation(fields: [branchProductId], references: [id])
-  Product       Product       @relation(fields: [productId], references: [id])
-
-  @@unique([branchProductId, StockLocation])
+enum Role {
+  ADMIN
+  USER
 }
 
 enum StockLocation {
   MAIN
-  BRANCH
-}
-
-//
-// ----------------------------
-// 🔹 Draft: จ่ายสต็อกจากสาขาเรา → ร้านฝากขาย
-// ----------------------------
-model StockIssueDraft {
-  id           Int      @id @default(autoincrement())
-  fromBranchId Int
-  toShopId     Int
-  status       String   @default("DRAFT") // DRAFT|CONFIRMED
-  createdBy    Int
-  createdAt    DateTime @default(now())
-
-  fromBranch Branch          @relation(fields: [fromBranchId], references: [id])
-  toShop     ConsignmentShop @relation(fields: [toShopId], references: [id])
-
-  lines StockIssueDraftLine[]
-}
-
-model StockIssueDraftLine {
-  id        Int @id @default(autoincrement())
-  draftId   Int
-  productId Int
-  qty       Int
-
-  draft   StockIssueDraft @relation(fields: [draftId], references: [id])
-  product Product         @relation(fields: [productId], references: [id])
-}
-
-//
-// ----------------------------
-// 🔹 Purchase (ซื้อเข้า)
-// ----------------------------
-model Purchase {
-  id         Int             @id @default(autoincrement())
-  supplierId Int
-  branchId   Int
-
-  // วันที่เอกสาร (แทนที่ตัวแปร date ที่โค้ด backend ใช้)
-  docDate    DateTime        @default(now())
-
-  status     PurchaseStatus  @default(DRAFT)
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
-
-  items      PurchaseItem[]
-
-  supplier   Supplier        @relation(fields: [supplierId], references: [id])
-  branch     Branch          @relation(fields: [branchId], references: [id])
-
-  @@index([branchId, docDate], name: "idx_purchase_branch_docdate")
-  @@index([supplierId, docDate], name: "idx_purchase_supplier_docdate")
-}
-
-model PurchaseItem {
-  id            Int           @id @default(autoincrement())
-  purchaseId    Int
-  productId     Int
-  orderedQty    Int
-  receivedQty   Int
-  usableQty     Int
-  defectQty     Int           @default(0)
-  unitCost      Float
-  totalCost     Float
-  StockLocation StockLocation @default(MAIN)
-
-  purchase Purchase     @relation(fields: [purchaseId], references: [id])
-  product  Product      @relation(fields: [productId], references: [id])
-  defects  DefectItem[]
+  CONSIGN
 }
 
 enum PurchaseStatus {
-  DRAFT
   PENDING
-  RECEIVED
+  CONFIRMED
   CANCELED
-}
-
-model DefectItem {
-  id             Int      @id @default(autoincrement())
-  purchaseItemId Int
-  reason         String?
-  quantity       Int
-  createdAt      DateTime @default(now())
-
-  purchaseItem PurchaseItem @relation(fields: [purchaseItemId], references: [id])
-}
-
-//
-// ----------------------------
-// 🔹 Sale (Order / POS รองรับทั้ง Branch และ Consignment)
-// ----------------------------
-enum SaleChannel {
-  BRANCH_POS
-  CONSIGNMENT_POS
-}
-
-model Sale {
-  id        Int         @id @default(autoincrement())
-  userId    Int
-  branchId  Int
-  shopId    Int? // ถ้าเป็น Consignment POS ใส่ร้านนี้, ถ้า Branch POS = null
-  channel   SaleChannel @default(BRANCH_POS)
-  total     Float
-  discount  Float       @default(0)
-  vat       Float       @default(0)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  status    SaleStatus  @default(ACTIVE)
-
-  user   User             @relation(fields: [userId], references: [id])
-  branch Branch           @relation("SaleBranch", fields: [branchId], references: [id])
-  shop   ConsignmentShop? @relation(fields: [shopId], references: [id])
-
-  items SaleItem[]
-
-  @@index([shopId])
-  @@index([channel])
-}
-
-model SaleItem {
-  id        Int   @id @default(autoincrement())
-  saleId    Int
-  productId Int
-  branchId  Int
-  quantity  Int
-  price     Float
-
-  sale                    Sale                     @relation(fields: [saleId], references: [id])
-  product                 Product                  @relation(fields: [productId], references: [id])
-  branch                  Branch                   @relation(fields: [branchId], references: [id])
-  consignedProductId      Int?
-  consignedProduct        ConsignedProduct?        @relation(fields: [consignedProductId], references: [id])
-  consignmentInvoiceLines ConsignmentInvoiceLine[]
-}
-
-enum SaleStatus {
-  ACTIVE
-  CANCELED
-}
-
-//
-// ----------------------------
-// 🔹 Invoice (Flexible)
-// ----------------------------
-model Invoice {
-  id        Int      @id @default(autoincrement())
-  branchId  Int
-  orderId   Int?     @unique
-  total     Float
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  branch Branch        @relation(fields: [branchId], references: [id])
-  order  Order?        @relation(fields: [orderId], references: [id])
-  lines  InvoiceLine[]
-}
-
-model InvoiceLine {
-  id        Int     @id @default(autoincrement())
-  invoiceId Int
-  invoice   Invoice @relation(fields: [invoiceId], references: [id])
-
-  description String?
-  sku         String?
-  productName String?
-  category    String?
-  quantity    Int?
-  unitPrice   Float?
-  amount      Float?
-
-  createdAt DateTime @default(now())
-}
-
-model InvoiceTemplate {
-  id        Int      @id @default(autoincrement())
-  branchId  Int
-  name      String
-  config    Json
-  createdAt DateTime @default(now())
-
-  branch Branch @relation(fields: [branchId], references: [id])
-}
-
-//
-// ----------------------------
-// 🔹 Order (ยังคงไว้ ถ้าใช้ร่วมกับระบบเดิม/ออนไลน์)
-// ----------------------------
-model Order {
-  id        Int         @id @default(autoincrement())
-  userId    Int
-  branchId  Int
-  status    OrderStatus @default(PENDING)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-
-  user    User        @relation(fields: [userId], references: [id])
-  branch  Branch      @relation(fields: [branchId], references: [id])
-  items   OrderItem[]
-  invoice Invoice?
-}
-
-model OrderItem {
-  id              Int   @id @default(autoincrement())
-  orderId         Int
-  productId       Int
-  branchProductId Int?
-  quantity        Int
-  unitPrice       Float
-  amount          Float
-
-  order         Order          @relation(fields: [orderId], references: [id])
-  product       Product        @relation(fields: [productId], references: [id])
-  branchProduct BranchProduct? @relation(fields: [branchProductId], references: [id])
-}
-
-enum OrderStatus {
-  PENDING
-  PAID
-  SHIPPED
-  COMPLETED
-  CANCELED
-}
-
-//
-// ----------------------------
-// 🔹 DeliveryDoc (เอกสารส่งของ → ร้านฝากขาย)
-// ----------------------------
-model DeliveryDoc {
-  id           Int            @id @default(autoincrement())
-  shopId       Int
-  fromBranchId Int?
-  templateId   Int?
-  createdAt    DateTime       @default(now())
-  status       DeliveryStatus @default(PENDING)
-
-  shop       ConsignmentShop   @relation(fields: [shopId], references: [id])
-  fromBranch Branch?           @relation(fields: [fromBranchId], references: [id])
-  template   DeliveryTemplate? @relation(fields: [templateId], references: [id])
-  lines      DeliveryLine[]
-}
-
-model DeliveryLine {
-  id         Int         @id @default(autoincrement())
-  deliveryId Int
-  delivery   DeliveryDoc @relation(fields: [deliveryId], references: [id])
-
-  // snapshot / สำหรับพิมพ์เอกสาร
-  productId   Int?
-  productName String?
-  sku         String?
-  quantity    Int
-  unitPrice   Float?
-  amount      Float?
-
-  // หมวดหมู่ฝั่งร้านคู่ค้า (snapshot)
-  partnerCategoryCode String?
-  partnerCategoryName String?
-
-  deliveryStockType DeliveryStockType @default(NORMAL)
-}
-
-enum DeliveryStockType {
-  NORMAL
-  CONSIGNMENT
 }
 
 enum DeliveryStatus {
@@ -434,210 +31,183 @@ enum DeliveryStatus {
   CANCELED
 }
 
-//
-// ----------------------------
-// 🔹 Delivery Template (หัว/ท้าย/แพทเทิร์นต่อร้าน)
-// ----------------------------
-model DeliveryTemplate {
-  id                Int      @id @default(autoincrement())
-  scope             String   @default("GLOBAL") // GLOBAL | BRANCH_SHARED | CONSIGNMENT
-  branchId          Int?
-  consignmentShopId Int?
-  name              String
-  config            Json
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  branch          Branch?          @relation(fields: [branchId], references: [id])
-  consignmentShop ConsignmentShop? @relation(fields: [consignmentShopId], references: [id])
-
-  docs DeliveryDoc[]
-
-  @@unique([scope, name])
-  @@index([scope])
-  @@index([branchId])
-  @@index([consignmentShopId])
-}
-
-//
-// ----------------------------
-// 🔹 ร้านฝากขาย (ไม่มีสาขาย่อย)
-// ----------------------------
-model ConsignmentShop {
-  id        Int                 @id @default(autoincrement())
+model Branch {
+  id        Int      @id @default(autoincrement())
   name      String
-  taxId     String?
-  contact   String?
-  phone     String?
-  email     String?
   address   String?
-  type      ConsignmentShopType @default(BRANCH)
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  users             User[]
-  products          ConsignedProduct[]
-  invoices          ConsignmentInvoice[]
-  billTemplates     ConsignmentBillTemplate[]
-  templates         DeliveryTemplate[]
-  categories        ShopCategory[]
-  productMaps       ShopProductMap[]
-  deliveries        DeliveryDoc[]
-  StockIssueDraft   StockIssueDraft[]
-  Sale              Sale[]
-  consignmentStocks ConsignmentStock[] // ✅ เพิ่มความสัมพันธ์กับ ConsignmentStock
+  // สัมพันธ์กับตารางอื่น ๆ
+  products           BranchProduct[]
+  stocks             Stock[]
+  purchases          Purchase[]
+  branchDeliveries   BranchDeliveryDoc[]  @relation("BranchFromBranch") // สาขาส่งออก
+  receivedDeliveries BranchDeliveryDoc[]  @relation("BranchToBranch") // สาขารับเข้า
+  consignDeliveries  ConsignDeliveryDoc[] @relation("ConsignFromBranch") // ส่งของให้ร้านฝากขาย
+  User               User[]
 }
 
-enum ConsignmentShopType {
-  HEAD
-  BRANCH
+model ConsignmentShop {
+  id          Int      @id @default(autoincrement())
+  name        String
+  displayName String?
+  address     String?
+  phone       String?
+  taxId       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  consignDeliveries ConsignDeliveryDoc[] @relation("ConsignToShop")
+  User              User[]
 }
 
-//
-// ----------------------------
-// 🔹 ConsignedProduct (ของเราฝากขายให้ "ร้าน")
-// ----------------------------
-model ConsignedProduct {
-  id        Int     @id @default(autoincrement())
-  productId Int
-  shopId    Int
+model Product {
+  id        Int      @id @default(autoincrement())
+  name      String
+  code      String?  @unique
   price     Float
-  active    Boolean @default(true)
-
-  shop      ConsignmentShop @relation(fields: [shopId], references: [id])
-  product   Product         @relation(fields: [productId], references: [id])
-  saleItems SaleItem[]
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([shopId, productId])
-  @@index([shopId])
-  @@index([productId])
+  branchProducts       BranchProduct[]
+  purchaseLines        PurchaseLine[]
+  stocks               Stock[]
+  branchDeliveryLines  BranchDeliveryLine[]
+  consignDeliveryLines ConsignDeliveryLine[]
 }
 
-/// สต็อกร้านฝากขาย (ยอดคงเหลือของสินค้าอยู่ที่ร้านคู่ค้า)
-model ConsignmentStock {
-  id        Int      @id @default(autoincrement())
-  shopId    Int
+model BranchProduct {
+  id        Int    @id @default(autoincrement())
+  branchId  Int
   productId Int
-  quantity  Int      @default(0)
-  updatedAt DateTime @updatedAt
+  price     Float?
+  quantity  Int    @default(0)
 
-  shop    ConsignmentShop @relation(fields: [shopId], references: [id])
-  product Product         @relation(fields: [productId], references: [id])
-
-  @@unique([shopId, productId]) // 1 ร้าน x 1 สินค้า = 1 แถว
-  @@index([shopId])
-  @@index([productId])
+  branch  Branch  @relation(fields: [branchId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
 }
 
-//
-// ----------------------------
-// 🔹 Consignment Invoice (ใบวางบิล) — เตรียมไว้ (เราจะโฟกัส Delivery ก่อน)
-// ----------------------------
-model ConsignmentInvoice {
-  id         Int      @id @default(autoincrement())
-  shopId     Int
-  templateId Int?
-  periodFrom DateTime
-  periodTo   DateTime
+model Stock {
+  id            Int           @id @default(autoincrement())
+  branchId      Int
+  productId     Int
+  quantity      Int           @default(0)
+  StockLocation StockLocation @default(MAIN)
+  updatedAt     DateTime      @updatedAt
 
-  // วันบนเอกสาร (อนุญาตย้อนหลังได้ตามนโยบายของร้าน)
-  issueDate      DateTime
-  isBackdated    Boolean  @default(false)
-  backdateReason String?
-  docNo          String?  @unique
-  notes          String?
-  issuedBy       Int?
-  issuedByUser   User?    @relation(fields: [issuedBy], references: [id])
-
-  total     Float
-  status    ConsignmentInvoiceStatus @default(PENDING)
-  createdAt DateTime                 @default(now())
-  updatedAt DateTime                 @updatedAt
-
-  shop     ConsignmentShop          @relation(fields: [shopId], references: [id])
-  template ConsignmentBillTemplate? @relation(fields: [templateId], references: [id])
-  lines    ConsignmentInvoiceLine[]
+  branch  Branch  @relation(fields: [branchId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
 }
 
-model ConsignmentInvoiceLine {
-  id          Int    @id @default(autoincrement())
-  invoiceId   Int
-  saleItemId  Int
-  productName String
-  quantity    Int
-  price       Float
-  amount      Float
+model Purchase {
+  id         Int            @id @default(autoincrement())
+  supplierId Int
+  branchId   Int?
+  status     PurchaseStatus @default(PENDING)
+  docDate    DateTime       @default(now())
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 
-  invoice  ConsignmentInvoice @relation(fields: [invoiceId], references: [id])
-  saleItem SaleItem           @relation(fields: [saleItemId], references: [id])
+  branch Branch?        @relation(fields: [branchId], references: [id])
+  lines  PurchaseLine[]
 }
 
-enum ConsignmentInvoiceStatus {
-  PENDING
-  PAID
+model PurchaseLine {
+  id            Int           @id @default(autoincrement())
+  purchaseId    Int
+  productId     Int
+  orderedQty    Int
+  usableQty     Int
+  defectQty     Int
+  unitCost      Float
+  totalCost     Float
+  StockLocation StockLocation @default(MAIN)
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
 }
 
-model ConsignmentBillTemplate {
-  id        Int      @id @default(autoincrement())
-  shopId    Int
-  name      String
-  config    Json // นโยบายวัน/หัวบิล/ท้ายบิล ฯลฯ
+/**
+ * ===========================================================
+ * DELIVERY: BRANCH TO BRANCH
+ * ===========================================================
+ */
+model BranchDeliveryDoc {
+  id           Int            @id @default(autoincrement())
+  docNumber    String         @unique
+  fromBranchId Int
+  toBranchId   Int
+  status       DeliveryStatus @default(PENDING)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  fromBranch Branch               @relation("BranchFromBranch", fields: [fromBranchId], references: [id])
+  toBranch   Branch               @relation("BranchToBranch", fields: [toBranchId], references: [id])
+  lines      BranchDeliveryLine[]
+}
+
+model BranchDeliveryLine {
+  id         Int    @id @default(autoincrement())
+  docId      Int
+  productId  Int
+  quantity   Int
+  unitPrice  Float?
+  totalPrice Float?
+
+  doc     BranchDeliveryDoc @relation(fields: [docId], references: [id])
+  product Product           @relation(fields: [productId], references: [id])
+}
+
+/**
+ * ===========================================================
+ * DELIVERY: BRANCH TO CONSIGNMENT SHOP
+ * ===========================================================
+ */
+model ConsignDeliveryDoc {
+  id           Int            @id @default(autoincrement())
+  docNumber    String         @unique
+  fromBranchId Int
+  shopId       Int
+  status       DeliveryStatus @default(PENDING)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  fromBranch Branch                @relation("ConsignFromBranch", fields: [fromBranchId], references: [id])
+  shop       ConsignmentShop       @relation("ConsignToShop", fields: [shopId], references: [id])
+  lines      ConsignDeliveryLine[]
+}
+
+model ConsignDeliveryLine {
+  id                  Int     @id @default(autoincrement())
+  docId               Int
+  productId           Int?
+  categoryId          Int?
+  productName         String?
+  partnerCategoryCode String?
+  partnerCategoryName String?
+  quantity            Int
+  unitPrice           Float?
+  totalPrice          Float?
+
+  doc     ConsignDeliveryDoc @relation(fields: [docId], references: [id])
+  product Product?           @relation(fields: [productId], references: [id])
+}
+
+model User {
+  id           Int    @id @default(autoincrement())
+  email        String @unique
+  passwordHash String
+  role         Role   @default(USER)
+
+  name              String?
+  consignmentShopId Int?
+  consignmentShop   ConsignmentShop? @relation(fields: [consignmentShopId], references: [id])
+
+  branchId Int?
+  branch   Branch? @relation(fields: [branchId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  shop     ConsignmentShop      @relation(fields: [shopId], references: [id])
-  invoices ConsignmentInvoice[]
-
-  @@unique([shopId, name])
-  @@index([shopId])
-}
-
-//
-// ----------------------------
-// 🔹 Shop-side: Category & Product Mapping (สำหรับ “รหัส/ชื่อ/หมวดหมู่” เฉพาะร้าน)
-// ----------------------------
-model ShopCategory {
-  id        Int      @id @default(autoincrement())
-  shopId    Int
-  code      String
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  shop        ConsignmentShop  @relation(fields: [shopId], references: [id])
-  productMaps ShopProductMap[]
-
-  @@unique([shopId, code])
-  @@index([shopId])
-}
-
-model ShopProductMap {
-  id             Int     @id @default(autoincrement())
-  shopId         Int
-  productId      Int
-  shopCategoryId Int?
-  shopSku        String?
-  shopName       String?
-  priceOverride  Float?
-
-  shop         ConsignmentShop @relation(fields: [shopId], references: [id])
-  product      Product         @relation(fields: [productId], references: [id])
-  shopCategory ShopCategory?   @relation(fields: [shopCategoryId], references: [id])
-
-  @@unique([shopId, productId])
-  @@index([shopId, shopCategoryId])
-}
-
-//
-// ----------------------------
-// 🔹 ENUMS
-// ----------------------------
-enum Role {
-  admin
-  seller
-  staff
-  user
 }
